@@ -9,103 +9,151 @@ namespace SearchPrime
     /// </summary>
     public class PrimeFinder
     {
+        // maximal limit of prime
+        private int _n;
+        // array that contain primes up to n
         private int[] _primes;
-        private int n;
-        private int _lastIndex;
-
-        public PrimeFinder(int n)
+        
+        // define the search range of them prime
+        private int _startIndex;
+        private int _endIndex;
+        
+        private static int REQUIRED_LENGTH = 12;
+        
+        
+        public void FindSolution(int n)
         {
-            this.n = n;
-        }
-
-        public void findSolution()
-        {
-            var watch = new System.Diagnostics.Stopwatch();
-            watch.Start();
             _primes = SieveOfEratosthenes(n);
-            int i = CalculateStartingIndex();
-            Console.WriteLine(String.Join(", ", _primes));
-            //Console.WriteLine(_primes[i]);
-            Console.WriteLine(i);
-            //Console.WriteLine(_primes[lastIndex]);
-            Console.WriteLine(_lastIndex);
-            Console.WriteLine(_primes.Length);
-            dfs_tree(i, new List<int>(), 1);
-            watch.Stop();
-            Console.WriteLine($"Execution Time: {watch.ElapsedMilliseconds } ms");
-
+            SetStartAndEndIndex();
+            dfs_tree(_startIndex, new List<int>(), 1);
         }
         
-        private void dfs_tree(int index, List<int> path, long mul)
+        /// <summary>
+        /// Exhaustive search using DFS for every possible, no duplicated computation is run
+        /// Time, space complexity of O(n^4)
+        /// Subtree are killed early if it is deem not possible
+        /// </summary>
+        /// <param name="index">
+        /// The starting prime index, only increase during recursive call
+        /// </param>
+        /// <param name="path">
+        /// Array that contains the prime number
+        /// </param>
+        /// <param name="product">
+        /// Current multiple of path, so multiplication is not repeated during recursive call 
+        /// </param>
+        private void dfs_tree(int index, List<int> path, long product)
         {
-            if (index >= _lastIndex) return;
+            if (index >= _endIndex) return;
+            
+            // calculate the product of all prime in current search
+            product = path.Count > 0 ? product * path[^1] : 1;
+            
+            // return if path is 4
             if (path.Count == 4)
             {
-                if (IsValid(mul * path[3]))
+                // print the number if it meet the requirement
+                if (IsValid(product))
                 {
                     Console.WriteLine(string.Join(", ", path));
-                    Console.WriteLine(mul * path[3]); 
+                    Console.WriteLine(product); 
                 }
             }
             else
             {
+                if (ShouldTrim(product, path.Count)) return;
                 
-                mul = path.Count > 0 ? mul * path[^1] : 1;
-                if (ShouldTrim(mul, path)) return;
+                // Recursively called every other prime that is not searched previously
                 for (var i = index; i < _primes.Length; i++)
                 {
                    path.Add(_primes[i]);
-                   dfs_tree(i+1, path, mul);
+                   dfs_tree(i+1, path, product);
                    path.RemoveAt(path.Count-1);
                 }
             }
         }
 
         /// <summary>
-        /// 
+        /// Calculate the starting and ending index based on the existing prime, if the prime with prime at start index
+        /// multiple the largest possible prime is less than require length, shift the starting index.
+        /// vice versa for ending index, if reject
         /// </summary>
         /// <returns></returns>
-        private int CalculateStartingIndex()
+        private void SetStartAndEndIndex()
         {
-            if (_primes.Length < 3) return 0;
-            long mul = _primes[^1] * _primes[^2] * _primes[^3];
+            if (_primes.Length < 3) return;
+            
             var i = 0;
-            while ((mul * _primes[i]).ToString().Length < 12)
+            // generate largest prime possible prime
+            long largestPossiblePrime = _primes[^1] * _primes[^2] * _primes[^3];
+            while ((largestPossiblePrime * _primes[i]).ToString().Length < 12)
             {
                 i++;
             }
+
+            _startIndex = i;
+            
+            // generate smallest possible prime
             var j = _primes.Length - 1;
-            mul = _primes[i+1] * _primes[i+2] * _primes[i+3];
-            while ((mul * _primes[j]).ToString().Length > 12)
+            long smallestPossiblePrime = _primes[i+1] * _primes[i+2] * _primes[i+3];
+            while ((smallestPossiblePrime * _primes[j]).ToString().Length > 12)
             {
                 j--;
             }
 
-            this._lastIndex = j;
-            return i;
+            _endIndex = j;
         }
 
+        /// <summary>
+        /// Check if the string is ascending, and of the required length
+        /// </summary>
+        /// <param name="n">
+        /// the input number
+        /// </param>
+        /// <returns>
+        /// True if it is, else false
+        /// </returns>
         private static bool IsValid(long n)
         {
             string s = n.ToString();
-            if (s.Length != 12)
+            if (s.Length != REQUIRED_LENGTH)
             {
                 return false;
             }
             return s == string.Join("", s.OrderBy(i => i.ToString()));
         }
         
-
-        private bool ShouldTrim(long mul, List<int> path)
+        /// <summary>
+        /// Optimization, kill the search tree if the current path multiply by the largest prime is less than
+        /// the required length of product
+        /// 
+        /// </summary>
+        /// <param name="product">
+        /// the current result product 
+        /// </param>
+        /// <param name="pathLength">
+        /// the current length of the path
+        /// </param>
+        /// <returns></returns>
+        private bool ShouldTrim(long product, int pathLength)
         {
-            return path.Count switch
+            return pathLength switch
             {
-                2 => (mul * _primes[^1] * _primes[^2]).ToString().Length < 12,
-                3 => (mul * _primes[^1]).ToString().Length < 12,
+                2 => (product * _primes[^1] * _primes[^2]).ToString().Length < REQUIRED_LENGTH,
+                3 => (product * _primes[^1]).ToString().Length < REQUIRED_LENGTH,
                 _ => false
             };
         }
 
+        /// <summary>
+        /// Helper function to generate all primes, O(n)
+        /// </summary>
+        /// <param name="n">
+        /// Upper limit of prime
+        /// </param>
+        /// <returns>
+        /// All prime number in array up to n, in ascending order
+        /// </returns>
         private static int[] SieveOfEratosthenes(int n)
         {
  
